@@ -1,8 +1,7 @@
 // UI derived from YuJunZhiXue/dsh-purge 1.1.71 (MIT). See LICENSE.
 import { h, react } from "./shared/react.js";
 import { PURGE_CSS } from "./styles/index.js";
-import { useDock, startGrantSync } from "./state/dock.js";
-import { AuthGate } from "./components/auth.js";
+import { useDock } from "./state/dock.js";
 import { NS, setTranslate, zh, en } from "./shared/locale.js";
 import { PurgePage } from "./components/page.js";
 // Sidebar rows are single-colour icons that follow the label colour, so the row
@@ -59,7 +58,6 @@ export function PanelOverlays() {
         : undefined,
     }),
     h(EnvAdaptSendGate),
-    st.authOpen ? h(AuthGate, { pending: st.pending }) : null,
   );
 }
 
@@ -74,7 +72,6 @@ export function apply(ctx) {
       "preset menu aliases",
     ),
   );
-  ctx.effect(startGrantSync, "panel grant sync");
   // Restored from 1.1.71 apply(): conversation.input.right rewind button.
   ctx.inject(["sessions", "uiWorkspace", "conversation"], (host) =>
     installRewindUi(host),

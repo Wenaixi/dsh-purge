@@ -3,6 +3,7 @@ import { apiUrl } from "../api/client.js";
 // YuJunZhiXue/dsh-purge 1.1.71 (MIT). Original block: client.js 1.1.71
 // lines 8134-8346: fetchEnvAdaptStatus / fetchEnvAdaptStatusSync /
 // EnvAdaptSendGate.
+import { requestDrillEnv } from "../state/dock.js";
 import {
   h,
   useState,
@@ -11,7 +12,7 @@ import {
   useRef,
 } from "../shared/react.js";
 import { useT } from "../shared/locale.js";
-import { readDrillAuth, requestDrillEnv } from "../state/dock.js";
+
 import {
   conversationInput,
   currentSessionId,
@@ -91,13 +92,7 @@ export function EnvAdaptSendGate() {
   const blockAndOpen = useCallback(() => {
     setConfirmSkip(false);
     refresh();
-    /* 第一次：只走完整授权窗 → 授权后进环境适配页 */
-    if (!readDrillAuth()) {
-      setOpen(false);
-      requestDrillEnv();
-      return true;
-    }
-    /* 已授权过：只弹精简环境适配窗，不再自动拉开整块演练台 */
+    /* 授权闸门已移除：直接弹精简环境适配窗。 */
     setOpen(true);
     return true;
   }, [refresh]);

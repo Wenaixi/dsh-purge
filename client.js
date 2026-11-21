@@ -8956,95 +8956,9 @@ var __dshPurgeDrill = (() => {
 })();
 
 // src/state/dock.js
-var AUTH_KEY = "dsh-purge-drill-auth";
-var drillGrantGen = 0;
-var drillGrantPosting = 0;
-var drillGrantState = { ready: false, granted: false };
-var drillSyncRetryTimer = null;
-function readDrillAuth() {
-  if (drillGrantState.ready) return drillGrantState.granted;
-  try {
-    return window.localStorage.getItem(AUTH_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-function setDrillAuthLocal(ok) {
-  try {
-    if (ok) window.localStorage.setItem(AUTH_KEY, "1");
-    else window.localStorage.removeItem(AUTH_KEY);
-  } catch {
-  }
-  drillGrantState = { ready: true, granted: !!ok };
-}
-function writeDrillAuth(ok) {
-  drillGrantGen += 1;
-  const gen = drillGrantGen;
-  setDrillAuthLocal(ok);
-  if (!ok) return;
-  drillGrantPosting += 1;
-  fetch(apiUrl("/dsh-purge/drill-grant"), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: "{}"
-  }).then((r) => r.json()).then((saved) => {
-    if (gen !== drillGrantGen) return;
-    setDrillAuthLocal(!!(saved && saved.granted));
-  }).catch(() => {
-  }).finally(() => {
-    drillGrantPosting = Math.max(0, drillGrantPosting - 1);
-  });
-}
-function startGrantSync() {
-  syncDrillGrant();
-  return () => {
-    drillGrantGen += 1;
-    if (drillSyncRetryTimer) clearTimeout(drillSyncRetryTimer);
-    drillSyncRetryTimer = null;
-  };
-}
-function syncDrillGrant(attempt) {
-  const n = attempt || 0;
-  const gen = drillGrantGen;
-  if (drillSyncRetryTimer) {
-    try {
-      clearTimeout(drillSyncRetryTimer);
-    } catch {
-    }
-    drillSyncRetryTimer = null;
-  }
-  fetch(apiUrl("/dsh-purge/drill-grant"), { method: "GET" }).then((r) => r.json()).then((r) => {
-    if (gen !== drillGrantGen) return;
-    if (!r || r.ok === false) throw new Error("grant");
-    if (r.granted) {
-      setDrillAuthLocal(true);
-      if (dockBus.authOpen) setDock({ authOpen: false });
-      return;
-    }
-    if (drillGrantPosting > 0) return;
-    setDrillAuthLocal(false);
-    if (dockBus.authOpen || dockBus.tab === "drill") {
-      setDock({
-        open: true,
-        tab: "drill",
-        authOpen: true,
-        pending: dockBus.pending || "tab"
-      });
-    }
-  }).catch(() => {
-    if (gen !== drillGrantGen) return;
-    if (n < 5) {
-      drillSyncRetryTimer = window.setTimeout(() => {
-        drillSyncRetryTimer = null;
-        syncDrillGrant(n + 1);
-      }, 400);
-    }
-  });
-}
 var dockBus = {
   open: false,
   tab: "clean",
-  authOpen: false,
   pending: "tab",
   listeners: /* @__PURE__ */ new Set()
 };
@@ -9084,8 +8998,8 @@ function requestDrill(kind) {
     } catch {
     }
   };
-  if (readDrillAuth()) {
-    setDock({ open: true, tab: "drill", authOpen: false, pending: "tab" });
+  {
+    setDock({ open: true, tab: "drill", pending: "tab" });
     try {
       if (__dshPurgeDrill && __dshPurgeDrill.setUI)
         __dshPurgeDrill.setUI({ open: true });
@@ -9104,15 +9018,11 @@ function requestDrill(kind) {
     }
     return;
   }
-  setDock({ open: true, tab: "drill", authOpen: true, pending });
 }
 function requestDrillEnv() {
   requestDrill("env");
 }
 var nativeSidebar = null;
-
-// src/components/auth.js
-var rd = __toESM(require("react-dom"), 1);
 
 // src/shared/locale.js
 var NS = "settings.dsh-purge-panel";
@@ -10024,162 +9934,6 @@ var en = {
   "updch.state.token.on": "GitHub token configured",
   "updch.state.token.off": "No GitHub token configured"
 };
-
-// src/components/auth.js
-var AUTH_LEGAL_HTML = "<h3>\u4E25\u6B63\u6CD5\u5F8B\u514D\u8D23\u4E0E\u5408\u89C4\u4F7F\u7528\u58F0\u660E</h3>\r\n    <p>\u672C\u58F0\u660E\u5728\u8FDB\u5165\u6F14\u7EC3\u53F0\u524D\u5FC5\u987B\u5168\u6587\u9605\u8BFB\u3002\u672C\u9879\u76EE\u662F\u975E\u8425\u5229\u5F00\u6E90\u9879\u76EE\uFF0C\u9075\u5B88\u56FD\u5BB6\u6CD5\u5F8B\u6CD5\u89C4\u53CA\u6240\u5728\u5E73\u53F0\u7684\u89C4\u8303\uFF0C\u4EC5\u4F9B\u5B66\u4E60\u4E0E\u7814\u7A76\u3001\u6280\u672F\u53C2\u8003\u3002\u4E25\u7981\u4EFB\u4F55\u4E3B\u4F53\u628A\u672C\u9879\u76EE\u7528\u4E8E\u5546\u4E1A\u552E\u5356\u3001\u4ED8\u8D39\u5012\u5356\u6216\u9ED1\u7070\u4EA7\u725F\u5229\u3002</p>\r\n    <p>\u5F00\u53D1\u8005\u575A\u51B3\u53CD\u5BF9\u5E76\u4E25\u7981\u4EFB\u4F55\u5F62\u5F0F\u7684\u8FDD\u6CD5\u72AF\u7F6A\uFF0C\u7EDD\u4E0D\u652F\u6301\u3001\u4E0D\u9F13\u52B1\u3001\u4E0D\u534F\u52A9\u672A\u6388\u6743\u7F51\u7EDC\u653B\u51FB\u3001\u6F0F\u6D1E\u5229\u7528\u3001\u6570\u636E\u7A83\u53D6\u3001\u975E\u6CD5\u4FB5\u5165\u8BA1\u7B97\u673A\u4FE1\u606F\u7CFB\u7EDF\uFF0C\u6216\u751F\u6210\u8FDD\u6CD5\u8FDD\u7981\u5185\u5BB9\u3002\u4EFB\u4F55\u5C06\u672C\u9879\u76EE\u7528\u4E8E\u8FDD\u6CD5\u72AF\u7F6A\u7684\u884C\u4E3A\uFF0C\u5747\u4E0E\u5F00\u53D1\u8005\u65E0\u5173\uFF0C\u7531\u884C\u4E3A\u4EBA\u4F9D\u6CD5\u72EC\u7ACB\u627F\u62C5\u5168\u90E8\u6CD5\u5F8B\u8D23\u4EFB\u3002\u4E0D\u5F97\u4EE5\u79D1\u7814\u3001\u6559\u5B66\u3001\u6D4B\u8BD5\u3001\u6F14\u793A\u6216\u5185\u90E8\u5B66\u4E60\u4E3A\u7531\u89C4\u907F\u4E0B\u5217\u6761\u6B3E\u3002</p>\r\n    <h3>1. \u672C\u4ED3\u5E93\u4E0D\u542B\u8FDD\u6CD5\u5185\u5BB9</h3>\r\n    <p>dsh-purge \u53D1\u5E03\u7684\u4EE3\u7801\u3001\u6587\u6863\u3001\u8865\u4E01\u4E0E\u9ED8\u8BA4\u63D0\u793A\u8BCD\u4E0D\u662F\u6728\u9A6C\u3001\u540E\u95E8\u3001\u672A\u6388\u6743\u6E17\u900F\u5DE5\u5177\u3001\u52D2\u7D22\u8F6F\u4EF6\u3001\u649E\u5E93\u811A\u672C\uFF0C\u4E5F\u4E0D\u662F\u9488\u5BF9\u516C\u7F51\u6216\u7B2C\u4E09\u65B9\u7CFB\u7EDF\u7684\u653B\u51FB\u8F7D\u8377\u3002\u9879\u76EE\u4E0D\u63D0\u4F9B\u8FDD\u6CD5\u5185\u5BB9\uFF0C\u4E5F\u4E0D\u6559\u5506\u3001\u7EC4\u7EC7\u3001\u534F\u52A9\u5B9E\u65BD\u8FDD\u6CD5\u72AF\u7F6A\u3002</p>\r\n    <h3>2. \u672C\u673A\u64CD\u4F5C\u4E0D\u6784\u6210\u5BF9\u5916\u6388\u6743</h3>\r\n    <p>\u5E94\u7528\u8865\u4E01\u3001\u5199\u5165\u3001\u56DE\u6EDA\u3001\u5378\u8F7D\uFF0C\u90FD\u5728\u672C\u673A\u6587\u4EF6\u548C\u672C\u673A\u8FDB\u7A0B\u5185\u5B8C\u6210\u3002\u8FD9\u4E9B\u64CD\u4F5C\u4E0D\u5BF9\u4EFB\u4F55\u516C\u7F51\u4E3B\u673A\u6216\u672A\u6388\u6743\u7CFB\u7EDF\u8FDB\u884C\u626B\u63CF\u3001\u63A2\u6D4B\u3001\u5165\u4FB5\u6216\u653B\u51FB\u53D1\u5305\uFF0C\u4E5F\u4E0D\u5F97\u628A\u672C\u673A\u5F53\u4F5C\u8DF3\u677F\u3002</p>\r\n    <p>\u63D2\u4EF6\u82E5\u5F00\u542F\u68C0\u6D4B\u66F4\u65B0\uFF0C\u4EC5\u53EF\u80FD\u8BBF\u95EE\u672C\u63D2\u4EF6\u81EA\u5DF1\u7684 GitHub \u4ED3\u5E93\u4EE5\u6838\u5BF9\u7248\u672C\u3002\u8BE5\u8BBF\u95EE\u4E0E\u5BF9\u7B2C\u4E09\u65B9\u7CFB\u7EDF\u7684\u7F51\u7EDC\u653B\u51FB\u65E0\u5173\uFF0C\u4E0D\u80FD\u88AB\u89E3\u91CA\u4E3A\u5BF9\u5916\u6E17\u900F\u7684\u6388\u6743\u3002</p>\r\n    <h3>3. \u5141\u8BB8\u4F7F\u7528\u7684\u8303\u56F4</h3>\r\n    <p>\u53EA\u5141\u8BB8\u7528\u5728\u4F60\u80FD\u8BC1\u660E\u6709\u6743\u5904\u7406\u7684\u73AF\u5883\uFF1A\u672C\u4EBA\u6709\u6743\u7BA1\u7406\u7684\u672C\u673A\u5B98\u65B9 Harness\uFF1B\u79BB\u7EBF\u7684\u672C\u5730\u5408\u6210\u9776\u6807\uFF1B\u6240\u6709\u8005\u5DF2\u7ECF\u51FA\u5177\u5408\u6CD5\u4E66\u9762\u6388\u6743\u7684\u7F51\u7EDC\u5B89\u5168\u6F14\u7EC3\u9776\u573A\uFF1B\u5408\u89C4\u5B9E\u9A8C\u5BA4\u91CC\u7684\u53D7\u63A7\u73AF\u5883\u3002\u4E66\u9762\u6388\u6743\u8981\u80FD\u5BF9\u5E94\u5177\u4F53\u76EE\u6807\u3001\u65F6\u95F4\u548C\u8303\u56F4\u3002\u53EA\u586B\u5199\u4E00\u4E2A\u5355\u4F4D\u540D\u79F0\uFF0C\u6216\u53EA\u6709\u53E3\u5934\u8BF4\u6CD5\uFF0C\u4E0D\u6784\u6210\u6388\u6743\u3002</p>\r\n    <p>\u672A\u7ECF\u6240\u6709\u8005\u5408\u6CD5\u4E66\u9762\u6388\u6743\u7684\u76EE\u6807\u3001\u516C\u7F51\u5728\u7EBF\u7CFB\u7EDF\u3001\u751F\u4EA7\u4E1A\u52A1\uFF0C\u4EE5\u53CA\u80FD\u6E90\u3001\u4EA4\u901A\u3001\u6C34\u5229\u3001\u91D1\u878D\u3001\u516C\u5171\u670D\u52A1\u3001\u7535\u5B50\u653F\u52A1\u7B49\u5173\u952E\u4FE1\u606F\u57FA\u7840\u8BBE\u65BD\uFF0C\u90FD\u4E0D\u5F97\u4F5C\u4E3A\u6F14\u7EC3\u5BF9\u8C61\u3002</p>\r\n    <h3>4. \u5FC5\u987B\u9075\u5B88\u7684\u6CD5\u5F8B\uFF0C\u6309\u6761\u3001\u6B3E</h3>\r\n    <p>\u300A\u4E2D\u534E\u4EBA\u6C11\u5171\u548C\u56FD\u5211\u6CD5\u300B\u7B2C\u4E8C\u767E\u516B\u5341\u4E94\u6761\u7B2C\u4E00\u6B3E\uFF1A\u7981\u6B62\u8FDD\u53CD\u56FD\u5BB6\u89C4\u5B9A\uFF0C\u4FB5\u5165\u56FD\u5BB6\u4E8B\u52A1\u3001\u56FD\u9632\u5EFA\u8BBE\u3001\u5C16\u7AEF\u79D1\u5B66\u6280\u672F\u9886\u57DF\u7684\u8BA1\u7B97\u673A\u4FE1\u606F\u7CFB\u7EDF\u3002</p>\r\n    <p>\u540C\u6761\u7B2C\u4E8C\u6B3E\uFF1A\u7981\u6B62\u4FB5\u5165\u524D\u6B3E\u89C4\u5B9A\u4EE5\u5916\u7684\u8BA1\u7B97\u673A\u4FE1\u606F\u7CFB\u7EDF\uFF0C\u6216\u8005\u7528\u5176\u4ED6\u6280\u672F\u624B\u6BB5\uFF0C\u83B7\u53D6\u8BE5\u7CFB\u7EDF\u4E2D\u5B58\u50A8\u3001\u5904\u7406\u6216\u8005\u4F20\u8F93\u7684\u6570\u636E\uFF0C\u6216\u8005\u5BF9\u8BE5\u7CFB\u7EDF\u5B9E\u65BD\u975E\u6CD5\u63A7\u5236\u3002</p>\r\n    <p>\u540C\u6761\u7B2C\u4E09\u6B3E\uFF1A\u7981\u6B62\u63D0\u4F9B\u4E13\u95E8\u7528\u4E8E\u4FB5\u5165\u3001\u975E\u6CD5\u63A7\u5236\u8BA1\u7B97\u673A\u4FE1\u606F\u7CFB\u7EDF\u7684\u7A0B\u5E8F\u3001\u5DE5\u5177\uFF1B\u660E\u77E5\u4ED6\u4EBA\u5B9E\u65BD\u4FB5\u5165\u3001\u975E\u6CD5\u63A7\u5236\u800C\u4E3A\u5176\u63D0\u4F9B\u7A0B\u5E8F\u3001\u5DE5\u5177\uFF0C\u540C\u6837\u7981\u6B62\u3002</p>\r\n    <p>\u7B2C\u4E8C\u767E\u516B\u5341\u516D\u6761\u7B2C\u4E00\u6B3E\uFF1A\u7981\u6B62\u5BF9\u8BA1\u7B97\u673A\u4FE1\u606F\u7CFB\u7EDF\u529F\u80FD\u8FDB\u884C\u5220\u9664\u3001\u4FEE\u6539\u3001\u589E\u52A0\u3001\u5E72\u6270\uFF0C\u9020\u6210\u7CFB\u7EDF\u4E0D\u80FD\u6B63\u5E38\u8FD0\u884C\u3002</p>\r\n    <p>\u540C\u6761\u7B2C\u4E8C\u6B3E\uFF1A\u7981\u6B62\u5BF9\u7CFB\u7EDF\u4E2D\u5B58\u50A8\u3001\u5904\u7406\u6216\u8005\u4F20\u8F93\u7684\u6570\u636E\u548C\u5E94\u7528\u7A0B\u5E8F\u8FDB\u884C\u5220\u9664\u3001\u4FEE\u6539\u3001\u589E\u52A0\u3002</p>\r\n    <p>\u540C\u6761\u7B2C\u4E09\u6B3E\uFF1A\u7981\u6B62\u6545\u610F\u5236\u4F5C\u3001\u4F20\u64AD\u8BA1\u7B97\u673A\u75C5\u6BD2\u7B49\u7834\u574F\u6027\u7A0B\u5E8F\uFF0C\u5F71\u54CD\u8BA1\u7B97\u673A\u7CFB\u7EDF\u6B63\u5E38\u8FD0\u884C\u3002</p>\r\n    <p>\u7B2C\u4E8C\u767E\u516B\u5341\u4E03\u6761\uFF1A\u7981\u6B62\u5229\u7528\u8BA1\u7B97\u673A\u5B9E\u65BD\u91D1\u878D\u8BC8\u9A97\u3001\u76D7\u7A83\u3001\u8D2A\u6C61\u3001\u632A\u7528\u516C\u6B3E\u3001\u7A83\u53D6\u56FD\u5BB6\u79D8\u5BC6\u6216\u8005\u5176\u4ED6\u72AF\u7F6A\u3002</p>\r\n    <p>\u7B2C\u4E8C\u767E\u516B\u5341\u4E03\u6761\u4E4B\u4E00\u7B2C\u4E00\u6B3E\u7B2C\uFF08\u4E00\uFF09\u9879\uFF1A\u7981\u6B62\u8BBE\u7ACB\u7528\u4E8E\u5B9E\u65BD\u8BC8\u9A97\u3001\u4F20\u6388\u72AF\u7F6A\u65B9\u6CD5\u3001\u5236\u4F5C\u6216\u8005\u9500\u552E\u8FDD\u7981\u7269\u54C1\u3001\u7BA1\u5236\u7269\u54C1\u7B49\u8FDD\u6CD5\u72AF\u7F6A\u6D3B\u52A8\u7684\u7F51\u7AD9\u3001\u901A\u8BAF\u7FA4\u7EC4\u3002</p>\r\n    <p>\u540C\u6B3E\u7B2C\uFF08\u4E8C\uFF09\u9879\uFF1A\u7981\u6B62\u53D1\u5E03\u6709\u5173\u5236\u4F5C\u6216\u8005\u9500\u552E\u6BD2\u54C1\u3001\u67AA\u652F\u3001\u6DEB\u79FD\u7269\u54C1\u7B49\u8FDD\u7981\u7269\u54C1\u3001\u7BA1\u5236\u7269\u54C1\u6216\u8005\u5176\u4ED6\u8FDD\u6CD5\u72AF\u7F6A\u7684\u4FE1\u606F\u3002</p>\r\n    <p>\u540C\u6B3E\u7B2C\uFF08\u4E09\uFF09\u9879\uFF1A\u7981\u6B62\u4E3A\u5B9E\u65BD\u8BC8\u9A97\u7B49\u8FDD\u6CD5\u72AF\u7F6A\u6D3B\u52A8\u53D1\u5E03\u4FE1\u606F\u3002</p>\r\n    <p>\u7B2C\u4E8C\u767E\u516B\u5341\u4E03\u6761\u4E4B\u4E8C\uFF1A\u7981\u6B62\u660E\u77E5\u4ED6\u4EBA\u5229\u7528\u4FE1\u606F\u7F51\u7EDC\u5B9E\u65BD\u72AF\u7F6A\uFF0C\u4ECD\u4E3A\u5176\u63D0\u4F9B\u6280\u672F\u652F\u6301\uFF0C\u6216\u8005\u63D0\u4F9B\u5E7F\u544A\u63A8\u5E7F\u3001\u652F\u4ED8\u7ED3\u7B97\u7B49\u5E2E\u52A9\u3002</p>\r\n    <p>\u7B2C\u4E8C\u767E\u4E94\u5341\u4E09\u6761\u4E4B\u4E00\u7B2C\u4E00\u6B3E\u3001\u7B2C\u4E09\u6B3E\uFF1A\u7981\u6B62\u5411\u4ED6\u4EBA\u51FA\u552E\u6216\u8005\u63D0\u4F9B\u516C\u6C11\u4E2A\u4EBA\u4FE1\u606F\uFF1B\u7981\u6B62\u7A83\u53D6\u6216\u8005\u4EE5\u5176\u4ED6\u65B9\u6CD5\u975E\u6CD5\u83B7\u53D6\u516C\u6C11\u4E2A\u4EBA\u4FE1\u606F\u3002</p>\r\n    <p>\u300A\u4E2D\u534E\u4EBA\u6C11\u5171\u548C\u56FD\u7F51\u7EDC\u5B89\u5168\u6CD5\u300B\u7B2C\u5341\u4E09\u6761\u7B2C\u4E8C\u6B3E\uFF1A\u4F7F\u7528\u7F51\u7EDC\u4E0D\u5F97\u5371\u5BB3\u7F51\u7EDC\u5B89\u5168\uFF0C\u4E0D\u5F97\u5229\u7528\u7F51\u7EDC\u4ECE\u4E8B\u5371\u5BB3\u56FD\u5BB6\u5B89\u5168\u3001\u8363\u8A89\u548C\u5229\u76CA\uFF0C\u717D\u52A8\u98A0\u8986\u56FD\u5BB6\u653F\u6743\u3001\u63A8\u7FFB\u793E\u4F1A\u4E3B\u4E49\u5236\u5EA6\uFF0C\u717D\u52A8\u5206\u88C2\u56FD\u5BB6\u3001\u7834\u574F\u56FD\u5BB6\u7EDF\u4E00\uFF0C\u5BA3\u626C\u6050\u6016\u4E3B\u4E49\u3001\u6781\u7AEF\u4E3B\u4E49\uFF0C\u5BA3\u626C\u6C11\u65CF\u4EC7\u6068\u3001\u6C11\u65CF\u6B67\u89C6\uFF0C\u4F20\u64AD\u66B4\u529B\u3001\u6DEB\u79FD\u8272\u60C5\u4FE1\u606F\uFF0C\u7F16\u9020\u3001\u4F20\u64AD\u865A\u5047\u4FE1\u606F\u6270\u4E71\u7ECF\u6D4E\u79E9\u5E8F\u548C\u793E\u4F1A\u79E9\u5E8F\uFF0C\u4EE5\u53CA\u4FB5\u5BB3\u4ED6\u4EBA\u540D\u8A89\u3001\u9690\u79C1\u3001\u77E5\u8BC6\u4EA7\u6743\u548C\u5176\u4ED6\u5408\u6CD5\u6743\u76CA\u7B49\u6D3B\u52A8\u3002</p>\r\n    <p>\u7B2C\u5341\u56DB\u6761\uFF1A\u7981\u6B62\u5229\u7528\u7F51\u7EDC\u4ECE\u4E8B\u5371\u5BB3\u672A\u6210\u5E74\u4EBA\u8EAB\u5FC3\u5065\u5EB7\u7684\u6D3B\u52A8\u3002</p>\r\n    <p>\u7B2C\u4E8C\u5341\u4E5D\u6761\uFF1A\u7981\u6B62\u975E\u6CD5\u4FB5\u5165\u4ED6\u4EBA\u7F51\u7EDC\u3001\u5E72\u6270\u4ED6\u4EBA\u7F51\u7EDC\u6B63\u5E38\u529F\u80FD\u3001\u7A83\u53D6\u7F51\u7EDC\u6570\u636E\uFF1B\u7981\u6B62\u63D0\u4F9B\u4E13\u95E8\u7528\u4E8E\u4FB5\u5165\u7F51\u7EDC\u3001\u5E72\u6270\u7F51\u7EDC\u6B63\u5E38\u529F\u80FD\u53CA\u9632\u62A4\u63AA\u65BD\u3001\u7A83\u53D6\u7F51\u7EDC\u6570\u636E\u7684\u7A0B\u5E8F\u3001\u5DE5\u5177\uFF1B\u660E\u77E5\u4ED6\u4EBA\u4ECE\u4E8B\u5371\u5BB3\u7F51\u7EDC\u5B89\u5168\u7684\u6D3B\u52A8\uFF0C\u7981\u6B62\u4E3A\u5176\u63D0\u4F9B\u6280\u672F\u652F\u6301\u3001\u5E7F\u544A\u63A8\u5E7F\u3001\u652F\u4ED8\u7ED3\u7B97\u7B49\u5E2E\u52A9\u3002</p>\r\n    <p>\u7B2C\u4E09\u5341\u4E09\u6761\uFF1A\u516C\u5171\u901A\u4FE1\u548C\u4FE1\u606F\u670D\u52A1\u3001\u80FD\u6E90\u3001\u4EA4\u901A\u3001\u6C34\u5229\u3001\u91D1\u878D\u3001\u516C\u5171\u670D\u52A1\u3001\u7535\u5B50\u653F\u52A1\u7B49\u5173\u952E\u4FE1\u606F\u57FA\u7840\u8BBE\u65BD\u5B9E\u884C\u91CD\u70B9\u4FDD\u62A4\u3002\u672A\u83B7\u5408\u6CD5\u6388\u6743\uFF0C\u4E0D\u5F97\u4FB5\u5165\u3001\u5E72\u6270\u6216\u7834\u574F\u3002</p>\r\n    <p>\u7B2C\u56DB\u5341\u516D\u6761\uFF1A\u7981\u6B62\u7A83\u53D6\u6216\u8005\u4EE5\u5176\u4ED6\u975E\u6CD5\u65B9\u5F0F\u83B7\u53D6\u4E2A\u4EBA\u4FE1\u606F\uFF0C\u7981\u6B62\u975E\u6CD5\u51FA\u552E\u6216\u8005\u975E\u6CD5\u5411\u4ED6\u4EBA\u63D0\u4F9B\u4E2A\u4EBA\u4FE1\u606F\u3002</p>\r\n    <p>\u7B2C\u56DB\u5341\u516B\u6761\uFF1A\u7981\u6B62\u8BBE\u7ACB\u7528\u4E8E\u5B9E\u65BD\u8BC8\u9A97\uFF0C\u4F20\u6388\u72AF\u7F6A\u65B9\u6CD5\uFF0C\u5236\u4F5C\u6216\u8005\u9500\u552E\u8FDD\u7981\u7269\u54C1\u3001\u7BA1\u5236\u7269\u54C1\u7B49\u8FDD\u6CD5\u72AF\u7F6A\u6D3B\u52A8\u7684\u7F51\u7AD9\u3001\u901A\u8BAF\u7FA4\u7EC4\uFF1B\u7981\u6B62\u5229\u7528\u7F51\u7EDC\u53D1\u5E03\u6D89\u53CA\u4E0A\u8FF0\u8FDD\u6CD5\u72AF\u7F6A\u6D3B\u52A8\u7684\u4FE1\u606F\u3002</p>\r\n    <p>\u7B2C\u4E94\u5341\u6761\uFF1A\u53D1\u9001\u7684\u7535\u5B50\u4FE1\u606F\u3001\u63D0\u4F9B\u7684\u5E94\u7528\u8F6F\u4EF6\u4E0D\u5F97\u8BBE\u7F6E\u6076\u610F\u7A0B\u5E8F\uFF0C\u4E0D\u5F97\u542B\u6709\u6CD5\u5F8B\u3001\u884C\u653F\u6CD5\u89C4\u7981\u6B62\u53D1\u5E03\u6216\u8005\u4F20\u8F93\u7684\u4FE1\u606F\u3002</p>\r\n    <p>\u300A\u4E2D\u534E\u4EBA\u6C11\u5171\u548C\u56FD\u6570\u636E\u5B89\u5168\u6CD5\u300B\u7B2C\u516B\u6761\uFF1A\u5F00\u5C55\u6570\u636E\u5904\u7406\u6D3B\u52A8\uFF0C\u4E0D\u5F97\u5371\u5BB3\u56FD\u5BB6\u5B89\u5168\u3001\u516C\u5171\u5229\u76CA\uFF0C\u4E0D\u5F97\u635F\u5BB3\u4E2A\u4EBA\u3001\u7EC4\u7EC7\u7684\u5408\u6CD5\u6743\u76CA\u3002</p>\r\n    <p>\u7B2C\u4E09\u5341\u4E8C\u6761\u7B2C\u4E00\u6B3E\uFF1A\u6536\u96C6\u6570\u636E\u5E94\u5F53\u91C7\u53D6\u5408\u6CD5\u3001\u6B63\u5F53\u7684\u65B9\u5F0F\uFF0C\u4E0D\u5F97\u7A83\u53D6\u6216\u8005\u4EE5\u5176\u4ED6\u975E\u6CD5\u65B9\u5F0F\u83B7\u53D6\u6570\u636E\u3002</p>\r\n    <p>\u540C\u6761\u7B2C\u4E8C\u6B3E\uFF1A\u6CD5\u5F8B\u3001\u884C\u653F\u6CD5\u89C4\u5BF9\u6536\u96C6\u3001\u4F7F\u7528\u6570\u636E\u7684\u76EE\u7684\u548C\u8303\u56F4\u6709\u89C4\u5B9A\u7684\uFF0C\u53EA\u80FD\u5728\u8BE5\u76EE\u7684\u548C\u8303\u56F4\u5185\u6536\u96C6\u3001\u4F7F\u7528\u3002</p>\r\n    <p>\u7B2C\u4E94\u5341\u4E00\u6761\uFF1A\u7A83\u53D6\u6216\u8005\u4EE5\u5176\u4ED6\u975E\u6CD5\u65B9\u5F0F\u83B7\u53D6\u6570\u636E\uFF0C\u6216\u8005\u56E0\u6B64\u635F\u5BB3\u4E2A\u4EBA\u3001\u7EC4\u7EC7\u5408\u6CD5\u6743\u76CA\u7684\uFF0C\u4F9D\u7167\u6709\u5173\u6CD5\u5F8B\u3001\u884C\u653F\u6CD5\u89C4\u5904\u7F5A\u3002</p>\r\n    <p>\u300A\u4E2D\u534E\u4EBA\u6C11\u5171\u548C\u56FD\u4E2A\u4EBA\u4FE1\u606F\u4FDD\u62A4\u6CD5\u300B\u7B2C\u4E94\u6761\uFF1A\u5904\u7406\u4E2A\u4EBA\u4FE1\u606F\u5E94\u5F53\u5408\u6CD5\u3001\u6B63\u5F53\u3001\u5FC5\u8981\u3001\u8BDA\u4FE1\uFF0C\u4E0D\u5F97\u901A\u8FC7\u8BEF\u5BFC\u3001\u6B3A\u8BC8\u3001\u80C1\u8FEB\u7B49\u65B9\u5F0F\u5904\u7406\u3002</p>\r\n    <p>\u7B2C\u516D\u6761\u7B2C\u4E00\u6B3E\u3001\u7B2C\u4E8C\u6B3E\uFF1A\u5904\u7406\u4E2A\u4EBA\u4FE1\u606F\u5E94\u5F53\u5177\u6709\u660E\u786E\u3001\u5408\u7406\u7684\u76EE\u7684\uFF0C\u5E76\u4E0E\u8BE5\u76EE\u7684\u76F4\u63A5\u76F8\u5173\uFF0C\u91C7\u53D6\u5BF9\u4E2A\u4EBA\u6743\u76CA\u5F71\u54CD\u6700\u5C0F\u7684\u65B9\u5F0F\uFF1B\u6536\u96C6\u9650\u4E8E\u5B9E\u73B0\u5904\u7406\u76EE\u7684\u7684\u6700\u5C0F\u8303\u56F4\uFF0C\u4E0D\u5F97\u8FC7\u5EA6\u6536\u96C6\u3002</p>\r\n    <p>\u7B2C\u5341\u6761\uFF1A\u7981\u6B62\u975E\u6CD5\u6536\u96C6\u3001\u4F7F\u7528\u3001\u52A0\u5DE5\u3001\u4F20\u8F93\u4ED6\u4EBA\u4E2A\u4EBA\u4FE1\u606F\uFF0C\u7981\u6B62\u975E\u6CD5\u4E70\u5356\u3001\u63D0\u4F9B\u6216\u8005\u516C\u5F00\u4ED6\u4EBA\u4E2A\u4EBA\u4FE1\u606F\uFF1B\u7981\u6B62\u4ECE\u4E8B\u5371\u5BB3\u56FD\u5BB6\u5B89\u5168\u3001\u516C\u5171\u5229\u76CA\u7684\u4E2A\u4EBA\u4FE1\u606F\u5904\u7406\u6D3B\u52A8\u3002</p>\r\n    <p>\u7B2C\u5341\u4E09\u6761\uFF1A\u6CA1\u6709\u53D6\u5F97\u4E2A\u4EBA\u540C\u610F\uFF0C\u4E5F\u4E0D\u5C5E\u4E8E\u8BA2\u7ACB\u5C65\u884C\u5408\u540C\u6240\u5FC5\u9700\u3001\u5C65\u884C\u6CD5\u5B9A\u804C\u8D23\u3001\u5E94\u5BF9\u7A81\u53D1\u3001\u516C\u5171\u5229\u76CA\u65B0\u95FB\u8206\u8BBA\u3001\u5904\u7406\u672C\u4EBA\u5DF2\u7ECF\u5408\u6CD5\u516C\u5F00\u7684\u4FE1\u606F\uFF0C\u4EE5\u53CA\u6CD5\u5F8B\u884C\u653F\u6CD5\u89C4\u89C4\u5B9A\u7684\u5176\u4ED6\u60C5\u5F62\u4E4B\u4E00\u7684\uFF0C\u4E0D\u5F97\u5904\u7406\u4E2A\u4EBA\u4FE1\u606F\u3002</p>\r\n    <p>\u7B2C\u4E8C\u5341\u516B\u6761\u3001\u7B2C\u4E8C\u5341\u4E5D\u6761\uFF1A\u751F\u7269\u8BC6\u522B\u3001\u533B\u7597\u5065\u5EB7\u3001\u91D1\u878D\u8D26\u6237\u3001\u884C\u8E2A\u8F68\u8FF9\uFF0C\u4EE5\u53CA\u4E0D\u6EE1\u5341\u56DB\u5468\u5C81\u672A\u6210\u5E74\u4EBA\u7684\u4E2A\u4EBA\u4FE1\u606F\uFF0C\u5C5E\u4E8E\u654F\u611F\u4E2A\u4EBA\u4FE1\u606F\u3002\u6CA1\u6709\u7279\u5B9A\u76EE\u7684\u3001\u5145\u5206\u5FC5\u8981\u6027\u548C\u4E25\u683C\u4FDD\u62A4\u63AA\u65BD\uFF0C\u5E76\u4E14\u6CA1\u6709\u53D6\u5F97\u4E2A\u4EBA\u5355\u72EC\u540C\u610F\u7684\uFF0C\u4E0D\u5F97\u5904\u7406\u3002</p>\r\n    <p>\u6B64\u5916\u8FD8\u987B\u9075\u5B88\u5176\u4ED6\u73B0\u884C\u6709\u6548\u7684\u6CD5\u5F8B\u3001\u884C\u653F\u6CD5\u89C4\u3001\u76D1\u7BA1\u89C4\u5B9A\uFF0C\u4EE5\u53CA\u6240\u4F7F\u7528\u6A21\u578B\u7684\u670D\u52A1\u6761\u6B3E\u4E0E\u6EE5\u7528\u653F\u7B56\u3002</p>\r\n    <h3>5. \u636E\u6B64\u7981\u6B62\u7684\u65B9\u5411</h3>\r\n    <p>\u672A\u6388\u6743\u8FDB\u5165\u3002\u7981\u6B62\u628A\u6CA1\u6709\u4E66\u9762\u6388\u6743\u7684\u5355\u4F4D\u3001\u57DF\u540D\u3001\u5730\u5740\u3001\u516C\u7F51\u7CFB\u7EDF\u3001\u751F\u4EA7\u4E1A\u52A1\u6216\u5173\u952E\u4FE1\u606F\u57FA\u7840\u8BBE\u65BD\u767B\u8BB0\u4E3A\u9776\u6807\uFF0C\u7981\u6B62\u5BF9\u5176\u626B\u63CF\u3001\u63A2\u6D4B\u3001\u4FB5\u5165\u3001\u63A7\u5236\u6216\u53D1\u5305\u3002\u5BF9\u5E94\u5211\u6CD5\u7B2C\u4E8C\u767E\u516B\u5341\u4E94\u6761\u7B2C\u4E00\u6B3E\u3001\u7B2C\u4E8C\u6B3E\uFF0C\u7F51\u7EDC\u5B89\u5168\u6CD5\u7B2C\u4E8C\u5341\u4E5D\u6761\u3001\u7B2C\u4E09\u5341\u4E09\u6761\u3002</p>\r\n    <p>\u7834\u574F\u4E0E\u6076\u610F\u7A0B\u5E8F\u3002\u7981\u6B62\u5220\u9664\u3001\u4FEE\u6539\u3001\u589E\u52A0\u3001\u5E72\u6270\u4ED6\u4EBA\u7CFB\u7EDF\u529F\u80FD\u6216\u5176\u4E2D\u7684\u6570\u636E\u3001\u5E94\u7528\u7A0B\u5E8F\uFF1B\u7981\u6B62\u5236\u4F5C\u3001\u4F20\u64AD\u75C5\u6BD2\u3001\u52D2\u7D22\u7A0B\u5E8F\u6216\u5176\u4ED6\u7834\u574F\u6027\u7A0B\u5E8F\uFF1B\u7981\u6B62\u5728\u4FE1\u606F\u6216\u8F6F\u4EF6\u4E2D\u8BBE\u7F6E\u6076\u610F\u7A0B\u5E8F\u3002\u5BF9\u5E94\u5211\u6CD5\u7B2C\u4E8C\u767E\u516B\u5341\u516D\u6761\u7B2C\u4E00\u6B3E\u81F3\u7B2C\u4E09\u6B3E\uFF0C\u7F51\u7EDC\u5B89\u5168\u6CD5\u7B2C\u4E94\u5341\u6761\u3002</p>\r\n    <p>\u5DE5\u5177\u4E0E\u5E2E\u52A9\u3002\u7981\u6B62\u628A\u672C\u9879\u76EE\u6216\u672C\u673A\u63D0\u4F9B\u7ED9\u4ED6\u4EBA\uFF0C\u7528\u4E8E\u4FB5\u5165\u3001\u975E\u6CD5\u63A7\u5236\u6216\u7A83\u53D6\u6570\u636E\uFF1B\u7981\u6B62\u660E\u77E5\u5BF9\u65B9\u5728\u5B9E\u65BD\u7F51\u7EDC\u72AF\u7F6A\uFF0C\u4ECD\u63D0\u4F9B\u7A0B\u5E8F\u3001\u5DE5\u5177\u3001\u6280\u672F\u652F\u6301\u3001\u5E7F\u544A\u63A8\u5E7F\u6216\u652F\u4ED8\u7ED3\u7B97\u3002\u5BF9\u5E94\u5211\u6CD5\u7B2C\u4E8C\u767E\u516B\u5341\u4E94\u6761\u7B2C\u4E09\u6B3E\u3001\u7B2C\u4E8C\u767E\u516B\u5341\u4E03\u6761\u4E4B\u4E8C\uFF0C\u7F51\u7EDC\u5B89\u5168\u6CD5\u7B2C\u4E8C\u5341\u4E5D\u6761\u3002</p>\r\n    <p>\u6570\u636E\u3002\u7981\u6B62\u7A83\u53D6\u3001\u975E\u6CD5\u6536\u96C6\u3001\u8D85\u8303\u56F4\u4F7F\u7528\u3001\u6CC4\u9732\u3001\u51FA\u552E\u6216\u5411\u4ED6\u4EBA\u63D0\u4F9B\u4E1A\u52A1\u6570\u636E\u3001\u8D26\u53F7\u3001\u53E3\u4EE4\u548C\u5176\u4ED6\u53D7\u4FDD\u62A4\u6570\u636E\u3002\u5BF9\u5E94\u6570\u636E\u5B89\u5168\u6CD5\u7B2C\u516B\u6761\u3001\u7B2C\u4E09\u5341\u4E8C\u6761\u3001\u7B2C\u4E94\u5341\u4E00\u6761\u3002</p>\r\n    <p>\u4E2A\u4EBA\u4FE1\u606F\u3002\u7981\u6B62\u975E\u6CD5\u6536\u96C6\u3001\u4F7F\u7528\u3001\u52A0\u5DE5\u3001\u4F20\u8F93\u3001\u4E70\u5356\u3001\u63D0\u4F9B\u6216\u516C\u5F00\u4ED6\u4EBA\u4E2A\u4EBA\u4FE1\u606F\uFF1B\u7981\u6B62\u8FC7\u5EA6\u6536\u96C6\uFF1B\u7981\u6B62\u4EE5\u8BEF\u5BFC\u3001\u6B3A\u8BC8\u3001\u80C1\u8FEB\u65B9\u5F0F\u5904\u7406\uFF1B\u7981\u6B62\u64C5\u81EA\u5904\u7406\u751F\u7269\u8BC6\u522B\u3001\u533B\u7597\u5065\u5EB7\u3001\u91D1\u878D\u8D26\u6237\u3001\u884C\u8E2A\u8F68\u8FF9\u548C\u513F\u7AE5\u4E2A\u4EBA\u4FE1\u606F\u3002\u5BF9\u5E94\u5211\u6CD5\u7B2C\u4E8C\u767E\u4E94\u5341\u4E09\u6761\u4E4B\u4E00\u7B2C\u4E00\u6B3E\u3001\u7B2C\u4E09\u6B3E\uFF0C\u7F51\u7EDC\u5B89\u5168\u6CD5\u7B2C\u56DB\u5341\u516D\u6761\uFF0C\u4E2A\u4EBA\u4FE1\u606F\u4FDD\u62A4\u6CD5\u7B2C\u4E94\u6761\u3001\u7B2C\u516D\u6761\u3001\u7B2C\u5341\u6761\u3001\u7B2C\u5341\u4E09\u6761\u3001\u7B2C\u4E8C\u5341\u516B\u6761\u3001\u7B2C\u4E8C\u5341\u4E5D\u6761\u3002</p>\r\n    <p>\u8BC8\u9A97\u4E0E\u8FDD\u6CD5\u4FE1\u606F\u3002\u7981\u6B62\u8BBE\u7ACB\u6216\u5229\u7528\u7F51\u7AD9\u3001\u7FA4\u7EC4\u5B9E\u65BD\u8BC8\u9A97\u3001\u4F20\u6388\u72AF\u7F6A\u65B9\u6CD5\u3001\u5236\u4F5C\u6216\u9500\u552E\u8FDD\u7981\u7269\u54C1\u3001\u7BA1\u5236\u7269\u54C1\uFF1B\u7981\u6B62\u53D1\u5E03\u6B64\u7C7B\u4FE1\u606F\uFF1B\u7981\u6B62\u5229\u7528\u8BA1\u7B97\u673A\u5B9E\u65BD\u8BC8\u9A97\u3001\u76D7\u7A83\u3001\u8D2A\u6C61\u3001\u632A\u7528\u516C\u6B3E\u3001\u7A83\u53D6\u56FD\u5BB6\u79D8\u5BC6\u3002\u5BF9\u5E94\u5211\u6CD5\u7B2C\u4E8C\u767E\u516B\u5341\u4E03\u6761\u3001\u7B2C\u4E8C\u767E\u516B\u5341\u4E03\u6761\u4E4B\u4E00\u7B2C\u4E00\u6B3E\u7B2C\uFF08\u4E00\uFF09\u9879\u81F3\u7B2C\uFF08\u4E09\uFF09\u9879\uFF0C\u7F51\u7EDC\u5B89\u5168\u6CD5\u7B2C\u56DB\u5341\u516B\u6761\u3002</p>\r\n    <p>\u5185\u5BB9\u3002\u7981\u6B62\u751F\u6210\u6216\u4F20\u64AD\u5371\u5BB3\u56FD\u5BB6\u5B89\u5168\u3001\u8363\u8A89\u548C\u5229\u76CA\u7684\u5185\u5BB9\uFF0C\u7981\u6B62\u717D\u52A8\u98A0\u8986\u3001\u5206\u88C2\uFF0C\u7981\u6B62\u6050\u6016\u4E3B\u4E49\u3001\u6781\u7AEF\u4E3B\u4E49\u3001\u6C11\u65CF\u4EC7\u6068\uFF0C\u7981\u6B62\u66B4\u529B\u3001\u6DEB\u79FD\u8272\u60C5\u3001\u8D4C\u535A\uFF0C\u7981\u6B62\u7F16\u9020\u865A\u5047\u4FE1\u606F\u6270\u4E71\u7ECF\u6D4E\u79E9\u5E8F\u548C\u793E\u4F1A\u79E9\u5E8F\uFF0C\u7981\u6B62\u4FB5\u5BB3\u540D\u8A89\u3001\u9690\u79C1\u3001\u77E5\u8BC6\u4EA7\u6743\uFF0C\u7981\u6B62\u5371\u5BB3\u672A\u6210\u5E74\u4EBA\u8EAB\u5FC3\u5065\u5EB7\u7684\u5185\u5BB9\u3002\u5BF9\u5E94\u7F51\u7EDC\u5B89\u5168\u6CD5\u7B2C\u5341\u4E09\u6761\u7B2C\u4E8C\u6B3E\u3001\u7B2C\u5341\u56DB\u6761\u3002</p>\r\n    <p>\u7ED3\u679C\u6269\u6563\u3002\u6F14\u7EC3\u4E2D\u5F62\u6210\u7684\u8BB0\u5F55\u3001\u8D44\u4EA7\u4FE1\u606F\u548C\u6587\u4EF6\uFF0C\u53EA\u7559\u5728\u4E66\u9762\u6388\u6743\u5199\u660E\u7684\u76EE\u6807\u548C\u671F\u9650\u91CC\uFF0C\u4E0D\u5F97\u4EA4\u7ED9\u65E0\u6743\u83B7\u77E5\u7684\u4EBA\uFF0C\u4E5F\u4E0D\u5F97\u6539\u4F5C\u6388\u6743\u4EE5\u5916\u7684\u7528\u9014\u3002</p>\r\n    <h3>6. \u8D23\u4EFB\u7531\u4F7F\u7528\u8005\u627F\u62C5</h3>\r\n    <p>\u672C\u9879\u76EE\u4F9D\u636E MIT \u534F\u8BAE\u6309\u73B0\u72B6\u63D0\u4F9B\u3002\u5F00\u53D1\u8005\u4E0D\u5C31\u5B8C\u6574\u6027\u3001\u5B89\u5168\u6027\u4E0E\u9002\u7528\u6027\u4F5C\u4FDD\u8BC1\u3002\u4F7F\u7528\u8005\u5BF9\u81EA\u5DF1\u7684\u4E0B\u8F7D\u3001\u90E8\u7F72\u3001\u8FD0\u884C\u3001\u4FEE\u6539\u3001\u4F20\u64AD\uFF0C\u4EE5\u53CA\u5168\u90E8\u8F93\u5165\u4E0E\u8F93\u51FA\uFF0C\u627F\u62C5\u72EC\u7ACB\u3001\u5B8C\u5168\u7684\u6C11\u4E8B\u3001\u884C\u653F\u53CA\u5211\u4E8B\u6CD5\u5F8B\u8D23\u4EFB\u3002\u4F5C\u8005\u4E0E\u8D21\u732E\u8005\u4E0D\u627F\u62C5\u56E0\u6EE5\u7528\u4EA7\u751F\u7684\u76F4\u63A5\u3001\u95F4\u63A5\u6216\u8FDE\u5E26\u8D23\u4EFB\u3002</p>\r\n    <p>\u52FE\u9009\u786E\u8BA4\u7684\u662F\u64CD\u4F5C\u8005\u672C\u4EBA\uFF0C\u4E0D\u80FD\u4EE3\u66FF\u6CA1\u6709\u9605\u8BFB\u672C\u58F0\u660E\u7684\u4EBA\uFF0C\u4E5F\u4E0D\u80FD\u628A\u522B\u4EBA\u7684\u7CFB\u7EDF\u8BF4\u6210\u5DF2\u7ECF\u6388\u6743\u3002</p>\r\n    <h3>7. \u8FDD\u7EA6\u5373\u7EC8\u6B62\u6388\u6743</h3>\r\n    <p>\u4E00\u65E6\u7528\u4E8E\u975E\u6CD5\u653B\u51FB\u3001\u6076\u610F\u6D3B\u52A8\u6216\u4E0A\u8FF0\u4EFB\u4E00\u7981\u6B62\u65B9\u5411\uFF0C\u4F7F\u7528\u8BB8\u53EF\u81EA\u8BE5\u884C\u4E3A\u53D1\u751F\u4E4B\u65E5\u8D77\u81EA\u52A8\u7EC8\u6B62\uFF0C\u4E14\u4E0D\u53EF\u64A4\u9500\u3002\u5FC5\u987B\u7ACB\u5373\u505C\u6B62\u4F7F\u7528\uFF0C\u5E76\u9500\u6BC1\u672C\u9879\u76EE\u7684\u4EE3\u7801\u3001\u811A\u672C\u4E0E\u884D\u751F\u6570\u636E\uFF0C\u4F9D\u6CD5\u627F\u62C5\u8D23\u4EFB\u3002\u6388\u6743\u7EC8\u6B62\u540E\uFF0C\u6F14\u7EC3\u53F0\u4E0D\u5F97\u7EE7\u7EED\u6253\u5F00\u6216\u7EE7\u7EED\u4F7F\u7528\u3002</p>\r\n    <h3>8. \u4E0E DeepSeek \u5B98\u65B9\u7684\u5173\u7CFB</h3>\r\n    <p>\u672C\u9879\u76EE\u662F\u72EC\u7ACB\u7684\u5F00\u6E90\u9879\u76EE\uFF0C\u4E0E DeepSeek \u5B98\u65B9\u6216\u5176\u5173\u8054\u4E3B\u4F53\u6CA1\u6709\u96B6\u5C5E\u3001\u5546\u4E1A\u5408\u4F5C\u3001\u6388\u6743\u6216\u5B98\u65B9\u80CC\u4E66\u3002\u6587\u4E2D\u7684\u300C\u5B98\u65B9\u300D\u53EA\u8868\u793A\u8BC4\u6D4B\u5BF9\u8C61\u662F\u4F7F\u7528\u8005\u672C\u673A\u5B89\u88C5\u7684\u5B98\u65B9 DeepSeek Harness \u8F6F\u4EF6\u5305\uFF0C\u4E0D\u4EE3\u8868 DeepSeek \u5B98\u65B9\u5F00\u53D1\u3001\u8BA4\u53EF\u6216\u62C5\u4FDD\u672C\u63D2\u4EF6\u3002</p>\r\n    <p>\u6587\u672B\u3002\u5012\u8BA1\u65F6\u7ED3\u675F\u3001\u6EDA\u5230\u8FD9\u91CC\u5E76\u52FE\u9009\u5168\u90E8\u4E09\u9879\uFF0C\u624D\u8868\u793A\u4F60\u4EE5\u672C\u4EBA\u8EAB\u4EFD\u8BA4\u53EF\u672C\u58F0\u660E\uFF0C\u5E76\u5B8C\u6210\u672C\u6B21\u6F14\u7EC3\u53F0\u6388\u6743\u3002</p>";
-function AuthGate(props) {
-  const t = useT();
-  const [left, setLeft] = useState(10);
-  const [readEnd, setReadEnd] = useState(false);
-  const [checks, setChecks] = useState({
-    read: false,
-    scope: false,
-    ban: false
-  });
-  const legalRef = useRef(null);
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setLeft((n) => {
-        if (n <= 1) {
-          window.clearInterval(id);
-          return 0;
-        }
-        return n - 1;
-      });
-    }, 1e3);
-    return () => window.clearInterval(id);
-  }, []);
-  useEffect(() => {
-    const el = legalRef.current;
-    if (!el) return;
-    if (el.scrollHeight <= el.clientHeight + 4) setReadEnd(true);
-  }, []);
-  const locked = left > 0 || !readEnd;
-  const ready = !locked && checks.read && checks.scope && checks.ban;
-  const hint = left > 0 ? t("auth.hint.wait").replace("{n}", String(left)) : readEnd ? t("auth.hint.check") : t("auth.hint.scroll");
-  const onScroll = () => {
-    const el = legalRef.current;
-    if (!el) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 8) setReadEnd(true);
-  };
-  const toggle = (id) => {
-    if (locked) return;
-    setChecks((prev) => Object.assign({}, prev, { [id]: !prev[id] }));
-  };
-  const okLabel = !ready ? t("auth.ok") : props.pending === "full" ? t("auth.ok.full") : props.pending === "env" ? t("auth.ok.env") : t("auth.ok.tab");
-  return h(
-    "div",
-    { className: "dshpp-auth-mask", role: "dialog", "aria-modal": "true" },
-    h(
-      "div",
-      { className: "dshpp-auth-modal" },
-      h("h2", null, t("auth.title")),
-      h(
-        "div",
-        {
-          className: "muted",
-          style: {
-            color: "var(--dsw-alias-label-secondary,#999)",
-            fontSize: 12
-          }
-        },
-        t("auth.lead")
-      ),
-      h("div", { className: "dshpp-auth-warn" }, t("auth.warn")),
-      h("div", {
-        className: "dshpp-auth-legal",
-        ref: legalRef,
-        onScroll,
-        dangerouslySetInnerHTML: { __html: AUTH_LEGAL_HTML }
-      }),
-      h(
-        "div",
-        {
-          style: {
-            color: "var(--dsw-alias-label-secondary,#999)",
-            fontSize: 12
-          }
-        },
-        hint
-      ),
-      h(
-        "div",
-        { className: "dshpp-auth-checks" },
-        [
-          ["read", "auth.check.read"],
-          ["scope", "auth.check.scope"],
-          ["ban", "auth.check.ban"]
-        ].map(
-          (row) => h(
-            "label",
-            { key: row[0], className: locked ? "locked" : "" },
-            h("input", {
-              type: "checkbox",
-              checked: !!checks[row[0]],
-              disabled: locked,
-              onChange: () => toggle(row[0])
-            }),
-            h("span", null, t(row[1]))
-          )
-        )
-      ),
-      h(
-        "div",
-        { className: "dshpp-auth-ops" },
-        h(
-          "button",
-          {
-            type: "button",
-            onClick: () => setDock({ authOpen: false, tab: "clean", pending: "tab" })
-          },
-          t("auth.no")
-        ),
-        h(
-          "button",
-          {
-            type: "button",
-            className: "primary",
-            disabled: !ready,
-            onClick: () => {
-              if (!ready) return;
-              writeDrillAuth(true);
-              const kind = props.pending || "tab";
-              setDock({
-                authOpen: false,
-                open: true,
-                tab: "drill",
-                pending: "tab"
-              });
-              try {
-                if (__dshPurgeDrill && __dshPurgeDrill.setUI)
-                  __dshPurgeDrill.setUI({ open: true });
-              } catch {
-              }
-              if (kind === "env") {
-                try {
-                  if (__dshPurgeDrill && __dshPurgeDrill.setUI)
-                    __dshPurgeDrill.setUI({ open: true, tab: "env" });
-                } catch {
-                }
-              }
-              if (kind === "full") {
-                try {
-                  window.open(
-                    window.location.href.split("#")[0] + "#redteam-full",
-                    "_blank",
-                    "noopener"
-                  );
-                } catch {
-                }
-              }
-            }
-          },
-          okLabel
-        )
-      )
-    )
-  );
-}
 
 // src/state/rewind-visibility.js
 var visible = false;
@@ -11097,7 +10851,7 @@ function HooksDenySection({ onSaved }) {
 }
 
 // src/components/restart.js
-var rd2 = __toESM(require("react-dom"), 1);
+var rd = __toESM(require("react-dom"), 1);
 function RestartAsk(props) {
   const node = h(
     "div",
@@ -11129,8 +10883,8 @@ function RestartAsk(props) {
     )
   );
   try {
-    if (rd2 && typeof rd2.createPortal === "function" && typeof document !== "undefined" && document.body) {
-      return rd2.createPortal(node, document.body);
+    if (rd && typeof rd.createPortal === "function" && typeof document !== "undefined" && document.body) {
+      return rd.createPortal(node, document.body);
     }
   } catch {
   }
@@ -12280,7 +12034,7 @@ function PurgifySection({ page = "status", onStatus } = {}) {
 }
 
 // src/state/session-context.js
-var import_react11 = require("react");
+var import_react10 = require("react");
 var host = null;
 var listeners2 = /* @__PURE__ */ new Set();
 function notify() {
@@ -12339,7 +12093,7 @@ function clientCurrentCwd() {
   }
 }
 function useCurrentCwd() {
-  return (0, import_react11.useSyncExternalStore)(subscribe, clientCurrentCwd, () => "");
+  return (0, import_react10.useSyncExternalStore)(subscribe, clientCurrentCwd, () => "");
 }
 
 // src/components/rules.js
@@ -14131,26 +13885,7 @@ function PurgePage() {
         "div",
         { className: "dshpp-sec dshpp-page-drill" },
         __dshPurgeDrill && __dshPurgeDrill.CSS ? h("style", { "data-dsh-purge-drill": "1" }, __dshPurgeDrill.CSS) : null,
-        readDrillAuth() ? h(__dshPurgeDrill.Panel, { embedded: true }) : h(
-          "div",
-          { className: "dshpp-card" },
-          h(
-            "p",
-            { className: "dshpp-muted" },
-            "\u6F14\u7EC3\u53F0\u9700\u8981\u5148\u5B8C\u6210\u4E00\u6B21\u6388\u6743\u3002"
-          ),
-          h(
-            Btn,
-            {
-              kind: "primary",
-              onClick: () => {
-                setDock({ tab: "drill", authOpen: true });
-                requestDrill("auth");
-              }
-            },
-            "\u53BB\u6388\u6743"
-          )
-        )
+        h(__dshPurgeDrill.Panel, { embedded: true })
       ) : null
     ),
     h(
@@ -15041,7 +14776,7 @@ function installRewindUi(ctx) {
 }
 
 // src/components/welcome.js
-var rd3 = __toESM(require("react-dom"), 1);
+var rd2 = __toESM(require("react-dom"), 1);
 
 // src/styles/welcome.css
 var welcome_default = "/* The first-run dialog is rendered before any settings page. It must own its\r\n   styles and cannot depend on the optional drill vendor stylesheet. */\r\n.dshpp-welcome-mask {\r\n  position: fixed;\r\n  inset: 0;\r\n  z-index: 2147483000;\r\n  display: grid;\r\n  place-items: center;\r\n  padding: 24px;\r\n  overflow: auto;\r\n  box-sizing: border-box;\r\n  background: rgb(0 0 0 / 35%);\r\n  color: var(--dsw-alias-label-primary, #171717);\r\n  font-family: inherit;\r\n  font-size: 14px;\r\n  line-height: 1.6;\r\n  text-align: left;\r\n}\r\n.dshpp-welcome-card {\r\n  width: min(600px, 100%);\r\n  max-height: calc(100dvh - 48px);\r\n  overflow: auto;\r\n  box-sizing: border-box;\r\n  padding: 24px;\r\n  border: 1px solid var(--dsw-alias-border-l1, #ddd);\r\n  border-radius: 16px;\r\n  background: var(--dsw-alias-bg-layer-1, #fff);\r\n  box-shadow: 0 16px 64px rgb(0 0 0 / 18%);\r\n}\r\n.dshpp-welcome-card h2 {\r\n  margin: 0 0 6px;\r\n  font: inherit;\r\n  font-size: 20px;\r\n  font-weight: 600;\r\n}\r\n.dshpp-welcome-card h3 {\r\n  margin: 16px 0 6px;\r\n  font: inherit;\r\n  font-weight: 600;\r\n}\r\n.dshpp-welcome-lead {\r\n  color: var(--dsw-alias-label-secondary, #666);\r\n}\r\n.dshpp-welcome-warn {\r\n  margin: 16px 0;\r\n  padding: 12px;\r\n  border-radius: 8px;\r\n  background: var(--dsw-alias-bg-layer-2, #f5f5f5);\r\n}\r\n.dshpp-welcome-legal p {\r\n  margin: 10px 0;\r\n}\r\n.dshpp-welcome-legal a {\r\n  color: var(--dsw-alias-label-brand, #436ee8);\r\n  overflow-wrap: anywhere;\r\n}\r\n.dshpp-welcome-check {\r\n  display: flex;\r\n  align-items: flex-start;\r\n  gap: 10px;\r\n  margin-top: 20px;\r\n  cursor: pointer;\r\n}\r\n.dshpp-welcome-check input {\r\n  flex: 0 0 auto;\r\n  width: 16px;\r\n  height: 16px;\r\n  margin: 4px 0 0;\r\n  accent-color: var(--dsw-alias-label-brand, #436ee8);\r\n}\r\n.dshpp-welcome-ops {\r\n  display: flex;\r\n  justify-content: flex-end;\r\n  margin-top: 20px;\r\n}\r\n.dshpp-welcome-ops button {\r\n  min-height: 36px;\r\n  padding: 8px 16px;\r\n  border: 0;\r\n  border-radius: 8px;\r\n  background: var(--dsw-alias-label-primary, #171717);\r\n  color: var(--dsw-alias-bg-base, #fff);\r\n  font: inherit;\r\n  cursor: pointer;\r\n}\r\n.dshpp-welcome-ops button:disabled {\r\n  opacity: 0.4;\r\n  cursor: default;\r\n}\r\n.dshpp-welcome-ops button:focus-visible,\r\n.dshpp-welcome-check input:focus-visible {\r\n  outline: 2px solid var(--dsw-alias-label-brand, #436ee8);\r\n  outline-offset: 3px;\r\n}\r\n@media (max-height: 600px) {\r\n  .dshpp-welcome-mask {\r\n    padding: 12px;\r\n  }\r\n  .dshpp-welcome-card {\r\n    max-height: calc(100dvh - 24px);\r\n    padding: 18px;\r\n  }\r\n}\r\n\r\n/* Phone WebViews can put native navigation over the top-left of the page.\r\n   Reserve its row; keep a single scroll region for long notice text. */\r\n@media (max-width: 600px) and (min-height: 500px) {\r\n  .dshpp-welcome-mask {\r\n    padding: max(76px, env(safe-area-inset-top)) 12px\r\n      max(20px, env(safe-area-inset-bottom));\r\n    grid-template: minmax(0, 1fr) / minmax(0, 1fr);\r\n  }\r\n  .dshpp-welcome-card {\r\n    display: grid;\r\n    grid-template-rows: auto minmax(0, 1fr) auto auto;\r\n    max-height: 100%;\r\n    padding: 16px;\r\n  }\r\n  .dshpp-welcome-copy {\r\n    overflow: auto;\r\n    overscroll-behavior: contain;\r\n  }\r\n  .dshpp-welcome-check,\r\n  .dshpp-welcome-ops {\r\n    margin-top: 10px;\r\n  }\r\n}\r\n";
@@ -15142,8 +14877,8 @@ function WelcomeNotice(props = {}) {
       )
     )
   );
-  if (rd3?.createPortal && typeof document !== "undefined" && document.body)
-    return rd3.createPortal(node, document.body);
+  if (rd2?.createPortal && typeof document !== "undefined" && document.body)
+    return rd2.createPortal(node, document.body);
   return node;
 }
 
@@ -15310,11 +15045,6 @@ function EnvAdaptSendGate() {
   const blockAndOpen = useCallback(() => {
     setConfirmSkip(false);
     refresh();
-    if (!readDrillAuth()) {
-      setOpen(false);
-      requestDrillEnv();
-      return true;
-    }
     setOpen(true);
     return true;
   }, [refresh]);
@@ -15570,8 +15300,7 @@ function PanelOverlays() {
     h(WelcomeNotice, {
       repo: true ? "https://github.com/kingcharleslzy-ai/dsh-purge" : void 0
     }),
-    h(EnvAdaptSendGate),
-    st.authOpen ? h(AuthGate, { pending: st.pending }) : null
+    h(EnvAdaptSendGate)
   );
 }
 function apply(ctx) {
@@ -15586,7 +15315,6 @@ function apply(ctx) {
       "preset menu aliases"
     )
   );
-  ctx.effect(startGrantSync, "panel grant sync");
   ctx.inject(
     ["sessions", "uiWorkspace", "conversation"],
     (host3) => installRewindUi(host3)

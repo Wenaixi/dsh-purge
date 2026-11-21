@@ -70,3 +70,33 @@ packages/purge-panel/src/    （React 工程，esbuild）
 2. `npm run check:client` —— 必须 PASS（产物与源码一致）
 3. 真启动 web profile，点开插件卡片，确认 6 个页签都在、试炼场的 10 个子页签都能打开
 4. 确认左侧栏**不再出现** Purge 图标
+
+## 五、试炼场授权闸门已移除
+
+本 fork **彻底删除**了试炼场的首次使用授权流程。原实现包含四层：
+
+| 层 | 原文件 | 原作用 |
+| --- | --- | --- |
+| 法律声明文案 | `components/auth.js` 的 `AUTH_LEGAL_HTML` | 约 9.9K 字符，逐条列举刑法 285/286/287、网络安全法、数据安全法、个保法 |
+| 强制阅读流程 | 同上 `AuthGate` | 10 秒倒计时 + 滚动到底 + 三重勾选 |
+| 本地授权落盘 | `lib/drill-grant.js` | 写 `$DSH_HOME/dsh-purge/drill-grant.json` |
+| 授权检查点 | `page.js` / `env-gate.js` / `dock.js` | 未授权则拦截试炼场与环境适配发送 |
+
+现在：**点开试炼场即可使用**，`EnvAdaptSendGate` 直接弹出精简的环境适配窗。
+
+### 移除清单（供后续维护对照）
+
+- 删除文件：`packages/purge-panel/src/components/auth.js`、`lib/drill-grant.js`
+- 删除 HTTP 路由：`/dsh-purge/drill-grant`（GET 读 / POST 写）
+- 删除 `lib/uninstall.js` 里的 `clearDrillGrant` 调用与 `drillGrantCleared` 字段
+- `dock.js`：整段授权状态机（`AUTH_KEY`、`drillGrantGen`、`drillGrantPosting`、
+  `drillGrantState`、`drillSyncRetryTimer`、`writeDrillAuth`、`startGrantSync`、
+  `syncDrillGrant`）全部移除；`readDrillAuth()` 保留为恒返回 `true` 的 stub，
+  让既有调用点无需改写
+- `dockBus` 的 `authOpen` 字段删除
+- `entry.js`：移除 `AuthGate` 渲染与 `startGrantSync` 注册
+
+### 注意
+
+前端产物 `client.js` 从 707.5 KB 降到 676.0 KB（−31.5 KB）。
+`npm run check:client` 必须 PASS（产物与源码一致）。

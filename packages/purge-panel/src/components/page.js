@@ -13,7 +13,7 @@ import { RulesSection } from "./rules.js";
 import { SkillsSection } from "./skills.js";
 import { CommunityMaintenance, StatusExtras } from "./maintenance.js";
 import { __dshPurgeDrill } from "../vendor/drill.js";
-import { readDrillAuth, setDock, requestDrill } from "../state/dock.js";
+import { setDock, requestDrill } from "../state/dock.js";
 
 const TABS = [
   ["status", "状态", "宿主兼容、补丁、破甲自检"],
@@ -326,28 +326,7 @@ export function PurgePage() {
             __dshPurgeDrill && __dshPurgeDrill.CSS
               ? h("style", { "data-dsh-purge-drill": "1" }, __dshPurgeDrill.CSS)
               : null,
-            readDrillAuth()
-              ? h(__dshPurgeDrill.Panel, { embedded: true })
-              : h(
-                  "div",
-                  { className: "dshpp-card" },
-                  h(
-                    "p",
-                    { className: "dshpp-muted" },
-                    "演练台需要先完成一次授权。",
-                  ),
-                  h(
-                    Btn,
-                    {
-                      kind: "primary",
-                      onClick: () => {
-                        setDock({ tab: "drill", authOpen: true });
-                        requestDrill("auth");
-                      },
-                    },
-                    "去授权",
-                  ),
-                ),
+            h(__dshPurgeDrill.Panel, { embedded: true }),
           )
         : null,
     ),
