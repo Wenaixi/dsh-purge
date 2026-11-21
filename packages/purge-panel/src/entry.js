@@ -9,7 +9,6 @@ import { PurgePage } from "./components/page.js";
 // gets the package artwork's outline as a mask over currentColor: same shield and
 // bolt, no colour of its own, nothing redrawn. esbuild inlines the 64x64 alpha
 // because the client bundle has no file server to point at.
-import sidebarGlyph from "./assets/sidebar-glyph.png";
 import { bindSessionContext } from "./state/session-context.js";
 import { bindPresetMenu } from "./state/preset-menu.js";
 import { installLegacyVisibility } from "./state/legacy-visibility.js";
@@ -37,24 +36,6 @@ export function PurgeIcon({ size = 20 } = {}) {
     h("circle", { cx: 9, cy: 7, r: 3, fill: "none" }),
     h("circle", { cx: 15, cy: 17, r: 3, fill: "none" }),
   );
-}
-
-function PurgeGlyphIcon({ size = 16 } = {}) {
-  const paint = {
-    width: size,
-    height: size,
-    display: "block",
-    backgroundColor: "currentColor",
-    maskImage: `url("${sidebarGlyph}")`,
-    WebkitMaskImage: `url("${sidebarGlyph}")`,
-    maskSize: "contain",
-    WebkitMaskSize: "contain",
-    maskRepeat: "no-repeat",
-    WebkitMaskRepeat: "no-repeat",
-    maskPosition: "center",
-    WebkitMaskPosition: "center",
-  };
-  return h("span", { "aria-hidden": true, style: paint });
 }
 
 // The host also renders the row contribution as a compact list item.
@@ -111,29 +92,10 @@ export function apply(ctx) {
       PanelOverlays,
     ),
   );
-  // 左侧栏入口：图标 + 整页。右侧抽屉不再注册，避免两处重复。
-  ctx.slots.inject("sidebar.panellist", () =>
-    ctx.slots.register(
-      {
-        name: "sidebar.panellist",
-        id: "dsh-purge",
-        order: 30,
-        label: "Purge",
-        inject: () => ({ t }),
-      },
-      PurgeGlyphIcon,
-    ),
-  );
-  ctx.slots.inject("main", () =>
-    ctx.slots.register(
-      {
-        name: "main",
-        key: "dsh-purge",
-        inject: () => ({ t }),
-      },
-      PurgePage,
-    ),
-  );
+  // 只保留插件卡片入口：宿主的插件详情页本就以 view:"page" 渲染
+  // plugins.bundle.config，DetailSettings 在那里直接渲染完整 PurgePage。
+  // 左侧栏图标（sidebar.panellist）与 main 整页因此不再注册——两处入口会让
+  // 同一份面板既出现在侧栏又出现在插件页，用户不知道该点哪个。
   ctx.slots.inject("plugins.bundle.config", () =>
     ctx.slots.register(
       {
