@@ -34,3 +34,6 @@ default-prompt-inject.md
 *.asar.bak
 
 market-dist/
+
+# 本机 AI 记忆库：不入公共仓库（本地保留）
+CLAUDE.md
