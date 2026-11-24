@@ -128,7 +128,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1"
+    "@deepseek-ai/cordis": ">=4.1.0 <5.0.0"
   },
   "engines": {
     "node": ">=18",
