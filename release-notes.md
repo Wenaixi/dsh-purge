@@ -1,3 +1,11 @@
+# 1.7.21
+
+- 兼容矩阵补上 `0.2.3-alpha.2`：宿主 DSH 0.2.3 系列携带 cordis 4.2.0-alpha.1，本插件
+  在隔离实例（`--dump-config`）与主环境实机启动双重验证通过，零 skipping、零
+  `ERR_MODULE_NOT_FOUND`；`cordis` peer 同步放宽为 `>=4.1.0 <5.0.0`。
+- 说明：本仓库的发布权限属 `kingcharleslzy-ai/dsh-purge`，社区版按本地 tgz 分发
+  （`dsh-purge-community-<ver>.tgz`），不走 npm。
+
 # 1.7.20
 
 - 新增 `outcome=partial_refused`：先给一段公开信息/背景、再把请求推掉的回答，不再算成功。

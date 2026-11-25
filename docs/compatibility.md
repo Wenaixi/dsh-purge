@@ -9,13 +9,14 @@
 
 | 项 | 值 |
 | --- | --- |
-| 插件版本 | `dsh-purge-community` 1.7.20 |
+| 插件版本 | `dsh-purge-community` 1.7.21 |
 | 声明范围 | `dsh.compatibility.dsh = ">=0.2.1-rc.1 <0.3.0"` |
 | profile | `desktop`、`web` |
 | 逐发行状态字段 | `dsh.compatibility.dshReleases` |
 
 | 宿主发行 | 状态 | 依据 / 备注 |
 | --- | --- | --- |
+| 0.2.3-alpha.2 | `compatible` | 2026-11-25 隔离实例 `--dump-config` 与主环境实机启动双验证：零 skipping、零 `ERR_MODULE_NOT_FOUND`，cordis 4.2.0-alpha.1 下补丁应用正常 |
 | 0.2.2-rc.3 | `compatible` | 官方 rc.3 隔离副本 86 条补丁 74 applied / 零漂移，二次应用幂等；真实 Host Loader 预设注册通过。**Windows rc.3 未复测补丁。** |
 | 0.2.2-rc.2 | `compatible` | 同上批次验证 |
 | 0.2.2-rc.1 | `compatible` | 仍未完整适配：六项旧补丁 #14/#17/#60/#62/#67/#74 保持原定义未修（见 [§2](#c-boundary)） |

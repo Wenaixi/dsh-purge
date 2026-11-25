@@ -9,9 +9,9 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.7.20** · 适配 **DSH Desktop 0.2.2-rc.3**（0.2.2-rc.1 / 0.2.1-rc.1 / rc.2 / rc.3 / rc.5 同样通过） · [English](docs/README.en.md)
+当前版本 **1.7.21** · 适配 **DSH 0.2.3-alpha.2**（0.2.2-rc.1 / rc.2 / rc.3 / rc.4 / rc.5 同样通过） · [English](docs/README.en.md)
 
-1.7.20 让审计标签说真话：`partial_refused`（先给内容后拒）与 `empty_after_retry`（重试后几乎没内容）不再算成功，并新增默认关闭的 seed 预填臂。[发行说明](https://github.com/kingcharleslzy-ai/dsh-purge/releases/tag/v1.7.20)。
+1.7.21 补上 DSH 0.2.3-alpha.2 的兼容矩阵条目：宿主随包带入 cordis 4.2.0-alpha.1，隔离实例与实机启动双验证通过。
 
 **原项目与作者**：小杨 / YuJunZhiXue 是历史上游 dsh-purge 的作者署名。本仓库独立维护社区版，保留上游版权和 MIT 许可证。历史署名不代表对当前同名 GitHub 账号身份的核实。详见[署名记录](NOTICE.md)与[许可证](LICENSE)。
 
