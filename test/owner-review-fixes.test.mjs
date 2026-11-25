@@ -93,14 +93,16 @@ function makeResources(root, { identity = "next" } = {}) {
 }
 
 /* ---------------- 1. 资格判定：内核层 vs 家族层 ---------------- */
+// 白名单已收窄到当前宿主（0.2.3-alpha.2）：旧版 rc.2 不再进已验证清单，
+// 下面三条用当前版本验证同样的两层判定逻辑。
 
-test("NEXT + rc.2：内核已回归，但整机不判 qualified", () => {
+test("NEXT + 当前版本：内核已回归，但整机不判 qualified", () => {
   const resources = makeResources(path.join(TMP, "c-next"));
-  const base = seedHost(path.join(resources, "app", "node_modules", "@deepseek-ai"));
+  const base = seedHost(path.join(resources, "app", "node_modules", "@deepseek-ai"), { version: "0.2.3-alpha.2" });
 
   const compat = compatibility(base);
   assert.equal(compat.host_family, "next");
-  assert.equal(compat.kernel.qualified, true, "rc.2 在内核清单里，内核层必须为 true");
+  assert.equal(compat.kernel.qualified, true, "当前版本在内核清单里，内核层必须为 true");
   assert.equal(compat.family_qualified, false, "NEXT 家族整体未验证");
   assert.equal(compat.qualified, false, "两层必须都过才算 qualified");
   assert.equal(compat.level, "kernel-verified", "不能报 qualified，也不能笼统报 unverified");
@@ -108,29 +110,29 @@ test("NEXT + rc.2：内核已回归，但整机不判 qualified", () => {
   assert.match(compat.message, /尚未验证/);
 });
 
-test("官方 bundled-host + rc.2：仍然判 qualified（回归不受影响）", () => {
+test("旧版 rc.2 已移出白名单：内核层不再判 qualified", () => {
   const resources = makeResources(path.join(TMP, "c-official"), { identity: "official" });
   const base = seedHost(path.join(resources, "app", "node_modules", "@deepseek-ai"));
 
   const compat = compatibility(base);
   assert.equal(compat.family_qualified, true);
-  assert.equal(compat.kernel.qualified, true);
-  assert.equal(compat.qualified, true);
-  assert.equal(compat.level, "qualified");
+  assert.equal(compat.kernel.qualified, false, "0.2.1-rc.2 已不在白名单");
+  assert.equal(compat.qualified, false);
+  assert.equal(compat.level, "unverified");
 });
 
-test("官方 bundled-host + 0.2.2-rc.2：进入已验证清单后判 qualified", () => {
+test("官方 bundled-host + 当前版本：判 qualified", () => {
   const resources = makeResources(path.join(TMP, "c-official-022rc2"), { identity: "official" });
-  const base = seedHost(path.join(resources, "app", "node_modules", "@deepseek-ai"), { version: "0.2.2-rc.2" });
+  const base = seedHost(path.join(resources, "app", "node_modules", "@deepseek-ai"), { version: "0.2.3-alpha.2" });
   const compat = compatibility(base);
-  assert.equal(compat.kernel.qualified, true, "0.2.2-rc.2 必须在已验证清单里");
+  assert.equal(compat.kernel.qualified, true, "0.2.3-alpha.2 必须在已验证清单里");
   assert.equal(compat.family_qualified, true);
   assert.equal(compat.qualified, true);
   assert.equal(compat.level, "qualified");
 });
 
 test("非桌面路径（npm 全局安装）：家族层不拦，按内核判定", () => {
-  const base = seedHost(path.join(TMP, "c-npm", "node_modules", "@deepseek-ai"));
+  const base = seedHost(path.join(TMP, "c-npm", "node_modules", "@deepseek-ai"), { version: "0.2.3-alpha.2" });
   const compat = compatibility(base);
   assert.equal(compat.host_family, "unknown");
   assert.equal(compat.kernel.qualified, true);

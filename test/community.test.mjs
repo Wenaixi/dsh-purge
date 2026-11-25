@@ -86,14 +86,15 @@ function setup() {
     close: () => fs.rmSync(home, { recursive: true, force: true }),
   };
 }
-test("compatibility reports instead of disabling: 0.2.1 qualified, unknown version unverified but writable", () => {
+test("compatibility reports instead of disabling: current host qualified, old version unverified but writable", () => {
   const f = setup();
   try {
     const base = compatibility(f.aiBase);
     assert.equal(base.runtime_supported, true);
     assert.equal(base.patch_writes_allowed, true);
-    assert.equal(base.qualified, true);
-    assert.equal(base.level, "qualified");
+    // 白名单已收窄到当前宿主；测试夹具写的是 0.2.1-rc.1，因此判 unverified。
+    assert.equal(base.qualified, false);
+    assert.equal(base.level, "unverified");
     // 有宿主就允许写：门禁只挡"完全找不到宿主"，不按版本一刀切。
     assert.doesNotThrow(() => requirePatchCompatibility(f.aiBase));
     fs.writeFileSync(

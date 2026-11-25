@@ -34,17 +34,6 @@ test("0.2.1 web-surface prompt: #32 neutralizes the product name, #53 drops iden
   assert.equal(applyReplacementsToText(after53, patch(53)).changed, false);
 });
 
-test("0.2.2 complete preset still carries the dsh-purge inject after assemble", () => {
-  const out = applyReplacementsToText(SYSTEM_PROMPT_ASSEMBLE, patch(40));
-  assert.equal(out.changed, true);
-  assert.ok(out.text.includes("const dshPurgeSections ="));
-  // complete 模式保留原 complete 段，并把注入段一并带上。
-  assert.ok(out.text.includes("[completeSection, ...dshPurgeSections]"));
-  assert.ok(out.text.includes("const requiredContexts = new Set("));
-  assert.ok(out.text.includes("requiredContexts.has(entry.name)"));
-  assert.equal(applyReplacementsToText(out.text, patch(40)).changed, false);
-});
-
 test("0.2.1 rewind marker drops sent messages on append", () => {
   const out = applyReplacementsToText(CONVERSATION_APPEND, patch(77));
   assert.equal(out.changed, true);
@@ -191,27 +180,17 @@ test("rc.5 keeps complete persona, selected tools and required contexts; first-s
     assert.ok(result.text.includes(part));
     return part;
   }
-  const tail = await patched(fixture.assembleTail, "dsh-system-prompt", 40);
+  // #40（complete 预设保留注入）已随旧版兼容清理移除：它服务的 0.1.5 宿主形态
+  // 在当前宿主上两个锚点与四个 marker 全部不命中，属纯残骸。
+  // 原来这里同时验证 assemble 语义与 #74 的 prepare 顺序；前者随 #40 一起退役，
+  // 后者的独立验证见下一条测试。
   const prepare = await patched(fixture.preStep, "dsh-agent-loop", 74);
-  const assemble = vm.runInNewContext('(async function(assembly, completeSection, runtimeContextSuppressed, contextByName) {' + tail + '})',
-    {scopeTarget: () => null, scope: null, context: {}});
-  const complete = {name:"user-persona", text:"User supplied text"};
-  const extra = {name:"dsh-purge-test", text:"User supplied supplement"};
-  const assembly = {sections:[{name:"other", text:"ordinary"}, complete, extra], tools:[{name:"read"}], contexts:[{name:"keep"}, {name:"drop"}]};
-  const ctx = {waterfall: async (_target, _event, original) => original};
-  const run = (persona, suppress) => assemble.call({ctx}, assembly, persona, suppress, new Map([["keep",{name:"keep",required:true}]]));
-  assert.equal(await run(undefined, false), assembly);
-  const result = await run(complete, true);
-  assert.deepEqual(Array.from(result.sections), [complete, extra]);
-  assert.deepEqual(Array.from(result.contexts), [assembly.contexts[0]]);
-  assert.equal(result.tools, assembly.tools);
-  ctx.waterfall = async () => { throw Error("provider failure"); };
-  await assert.rejects(run(complete, false), /provider failure/);
   const events = [];
   const method = vm.runInNewContext('({' + prepare + '}).preStep', {
     __dshPurgePrepareAssemble: () => events.push("prepare"),
     assembleContextFor: () => ({}), renderContextSections: () => [], joinContextSections: () => "",
   });
+  const assembly = {sections:[{name:"other", text:"ordinary"}], tools:[{name:"read"}], contexts:[]};
   const agent = {phase:{kind:"running",abort:new AbortController()}, inbox:{claim:()=>[]},
     loopCtx:{systemPrompt:{assemble:async()=>{events.push("assemble");return assembly;}}},
     dispatch:{waterfall:async(_event,_args,next)=>next()},runtimeContext:{project:()=>undefined}};
